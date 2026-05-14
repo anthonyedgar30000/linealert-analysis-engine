@@ -31,13 +31,14 @@ class OperationDurationExceededRule:
         for measurement in context.timing.measurements:
             if measurement.relationship != "operation_duration" or not measurement.exceeded_threshold:
                 continue
+            operation_name = _humanize(measurement.label)
             findings.append(
                 Finding(
                     rule_id=self.id,
                     severity=self.severity,
-                    fault_code="slow_operation",
+                    fault_code=_duration_fault_code(measurement.label),
                     explanation=(
-                        f"Operation {measurement.label} took {measurement.duration_ms} ms, "
+                        f"Operation {operation_name} took {measurement.duration_ms} ms, "
                         f"exceeding the {measurement.threshold_ms} ms threshold."
                     ),
                     evidence_event_ids=tuple(
@@ -66,13 +67,14 @@ class MissingOperationEndRule:
         for measurement in context.timing.measurements:
             if measurement.relationship != "operation_duration" or not measurement.is_missing_end:
                 continue
+            operation_name = _humanize(measurement.label)
             findings.append(
                 Finding(
                     rule_id=self.id,
                     severity=self.severity,
-                    fault_code="missing_operation_end",
+                    fault_code=_missing_end_fault_code(measurement.label),
                     explanation=(
-                        f"Operation {measurement.label} started but no matching operation_end "
+                        f"Operation {operation_name} started but no matching operation_end "
                         "event was observed in this cycle."
                     ),
                     evidence_event_ids=(measurement.start_event_id,),
@@ -199,3 +201,21 @@ def _summary(cycle: ReconstructedCycle) -> dict[str, object]:
         "event_count": cycle.event_count,
         "cycle_status": cycle.status,
     }
+
+
+def _duration_fault_code(operation: str) -> str:
+    return {
+        "tamp_return": "slow_tamp_return",
+        "tamp_extend": "delayed_tamp_extend",
+        "index_transfer": "speed_dependent_drift",
+    }.get(operation, "slow_operation")
+
+
+def _missing_end_fault_code(operation: str) -> str:
+    return {
+        "product_detect": "missing_product_detect",
+    }.get(operation, "missing_operation_end")
+
+
+def _humanize(value: str) -> str:
+    return value.replace("_", " ")

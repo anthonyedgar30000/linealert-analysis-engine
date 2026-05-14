@@ -24,6 +24,10 @@ class EventRelationship:
     match_payload_keys: tuple[str, ...] = ()
     label_payload_key: str | None = None
     default_label: str = "default"
+    payload_equals: tuple[tuple[str, object], ...] = ()
+
+    def applies_to(self, event: Event) -> bool:
+        return all(event.payload.get(key) == value for key, value in self.payload_equals)
 
     def match_key(self, event: Event) -> tuple[object, ...]:
         return tuple(event.payload.get(key) for key in self.match_payload_keys)
@@ -53,9 +57,13 @@ class TimingAnalyzer:
 
         for event in ordered_events:
             for relationship in relationships_by_start[event.event_type]:
+                if not relationship.applies_to(event):
+                    continue
                 open_starts[(relationship.name, relationship.match_key(event))].append(event)
 
             for relationship in relationships_by_end[event.event_type]:
+                if not relationship.applies_to(event):
+                    continue
                 key = (relationship.name, relationship.match_key(event))
                 starts = open_starts[key]
                 if not starts:

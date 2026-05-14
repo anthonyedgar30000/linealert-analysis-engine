@@ -13,6 +13,7 @@ analysis.
 - Simple explainable fault mapping with hardcoded rules
 - Unit tests for timing logic
 - Demo event generator
+- Deterministic validation pack for expected Phase 1 outcomes
 
 There is no frontend or AI/LLM integration in Phase 1.
 
@@ -165,3 +166,23 @@ Generate events, ingest them into SQLite, and print analysis:
 ```bash
 python3 scripts/generate_demo_events.py --output demo_events.jsonl --database demo.db
 ```
+
+Run the validation pack:
+
+```bash
+python3 scripts/run_validation_pack.py --output-dir validation_output
+```
+
+The validation pack generates 30 cycles for each dataset:
+
+- `normal_cycles`
+- `slow_tamp_return`
+- `delayed_tamp_extend`
+- `missing_product_detect`
+- `out_of_order_event_sequence`
+- `speed_dependent_drift`
+- `random_timing_jitter`
+
+For each dataset it stores expected summaries, runs SQLite-backed ingestion and
+analysis, compares actual to expected, and can write generated events plus
+sample outputs to disk.

@@ -6,6 +6,7 @@ from .rules import RuleEngine, default_rules
 from .service import AnalysisService
 from .storage import SQLiteStore
 from .timing import EventRelationship, TimingAnalyzer, default_relationships
+from .validation_pack import build_validation_datasets, compare_all_datasets
 
 __all__ = [
     "AnalysisResult",
@@ -18,6 +19,8 @@ __all__ = [
     "RuleEngine",
     "SQLiteStore",
     "TimingAnalyzer",
+    "build_validation_datasets",
+    "compare_all_datasets",
     "default_relationships",
     "default_rules",
 ]
