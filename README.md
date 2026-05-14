@@ -16,6 +16,8 @@ analysis.
 - Deterministic validation pack for expected Phase 1 outcomes
 - Messy reality validation datasets with low/medium/high confidence scoring
 - Deterministic cycle timelines and operational incident narratives
+- Structured troubleshooting knowledge-base loader for future expert decision
+  tree ingestion
 
 There is no frontend or AI/LLM integration in Phase 1.
 
@@ -131,6 +133,80 @@ It emits:
 
 No LLM, AI-generated explanation, recommendation engine, frontend, or chat
 interface is used.
+
+## Troubleshooting knowledge base
+
+The troubleshooting knowledge base is a structured import format for Peter's
+real label-machine troubleshooting decision tree. The current repository only
+contains placeholder examples; they are not Peter's actual knowledge.
+
+Supported file types:
+
+- JSON
+- YAML/YML using a dependency-free subset, with optional PyYAML support if it is
+  installed by the runtime
+
+Required entry fields:
+
+- `symptom_category`
+- `observed_operator_symptom`
+- `related_fault_code`
+- `possible_causes`
+- `distinguishing_questions`
+- `machine_signals_to_check`
+- `timing_relationships_to_check`
+- `recommended_checks`
+- `recommended_fixes`
+- `escalation_condition`
+- `notes_from_expert`
+- `confidence_adjustment_rules`
+
+Example placeholder entry:
+
+```json
+{
+  "schema_version": 1,
+  "source": "PLACEHOLDER TEMPLATE - replace with Peter's real label-machine troubleshooting tree",
+  "is_placeholder": true,
+  "entries": [
+    {
+      "id": "placeholder_entry_001",
+      "is_placeholder": true,
+      "symptom_category": "PLACEHOLDER: symptom category from Peter's tree",
+      "observed_operator_symptom": "PLACEHOLDER: operator-visible symptom text goes here",
+      "related_fault_code": "PLACEHOLDER_RELATED_LINEALERT_FAULT_CODE",
+      "possible_causes": ["PLACEHOLDER: possible cause from real expert tree"],
+      "distinguishing_questions": ["PLACEHOLDER: question Peter uses to distinguish this path"],
+      "machine_signals_to_check": ["PLACEHOLDER: machine signal or sensor name to verify"],
+      "timing_relationships_to_check": ["PLACEHOLDER: LineAlert timing relationship name"],
+      "recommended_checks": ["PLACEHOLDER: safe inspection/check step from Peter"],
+      "recommended_fixes": ["PLACEHOLDER: fix action from Peter's real tree"],
+      "escalation_condition": "PLACEHOLDER: condition where operator should escalate",
+      "notes_from_expert": "PLACEHOLDER: Peter's notes or context go here.",
+      "confidence_adjustment_rules": [
+        {
+          "condition": "PLACEHOLDER: deterministic condition using evidence fields",
+          "adjustment": "PLACEHOLDER: increase | decrease | no_change",
+          "rationale": "PLACEHOLDER: expert rationale for confidence adjustment"
+        }
+      ]
+    }
+  ]
+}
+```
+
+To add Peter's real entries later:
+
+1. Copy `examples/troubleshooting_placeholder.json` or
+   `examples/troubleshooting_template.yaml`.
+2. Keep `schema_version: 1`.
+3. Replace every `PLACEHOLDER` value with Peter's real symptom, cause, question,
+   signal, timing relationship, check, fix, escalation, and expert-note text.
+4. Set `is_placeholder` to `false` at the root and entry level.
+5. Set `related_fault_code` to the LineAlert finding code the entry should map
+   to, such as a timing-derived fault code.
+6. Load it with `load_troubleshooting_knowledge(path)`; no core code changes are
+   needed if the schema is preserved.
 
 ## Sample analysis output
 

@@ -8,11 +8,18 @@ from .service import AnalysisService
 from .storage import SQLiteStore
 from .timeline import TimelineReconstructor
 from .timing import EventRelationship, TimingAnalyzer, default_relationships
+from .troubleshooting import (
+    ConfidenceAdjustmentRule,
+    TroubleshootingEntry,
+    TroubleshootingKnowledgeBase,
+    load_troubleshooting_knowledge,
+)
 from .validation_pack import build_validation_datasets, compare_all_datasets
 
 __all__ = [
     "AnalysisResult",
     "AnalysisService",
+    "ConfidenceAdjustmentRule",
     "ConfidenceScorer",
     "CycleReconstructor",
     "Event",
@@ -23,8 +30,11 @@ __all__ = [
     "SQLiteStore",
     "TimingAnalyzer",
     "TimelineReconstructor",
+    "TroubleshootingEntry",
+    "TroubleshootingKnowledgeBase",
     "build_validation_datasets",
     "compare_all_datasets",
     "default_relationships",
     "default_rules",
+    "load_troubleshooting_knowledge",
 ]
