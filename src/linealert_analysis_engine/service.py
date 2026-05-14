@@ -48,12 +48,15 @@ class AnalysisService:
         self.store.save_analysis(result)
         return result
 
-    def analyze_all(self) -> tuple[AnalysisResult, ...]:
-        results = tuple(self._evaluate_cycle(cycle) for cycle in self.reconstruct_cycles())
+    def analyze_cycles(self, cycles: Iterable[ReconstructedCycle]) -> tuple[AnalysisResult, ...]:
+        results = tuple(self._evaluate_cycle(cycle) for cycle in cycles)
         scored_results = self.confidence_scorer.score(results)
         for result in scored_results:
             self.store.save_analysis(result)
         return scored_results
+
+    def analyze_all(self) -> tuple[AnalysisResult, ...]:
+        return self.analyze_cycles(self.reconstruct_cycles())
 
     def _evaluate_cycle(self, cycle: ReconstructedCycle) -> AnalysisResult:
         timing = self.timing_analyzer.analyze(cycle)

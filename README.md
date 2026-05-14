@@ -15,6 +15,7 @@ analysis.
 - Demo event generator
 - Deterministic validation pack for expected Phase 1 outcomes
 - Messy reality validation datasets with low/medium/high confidence scoring
+- Deterministic cycle timelines and operational incident narratives
 
 There is no frontend or AI/LLM integration in Phase 1.
 
@@ -110,6 +111,26 @@ deterministic inputs only:
 - repeated occurrence count
 - relationship strength versus threshold
 - duration of abnormal behavior across the analyzed window
+
+## Timeline and incident reconstruction
+
+`TimelineReconstructor` builds deterministic, evidence-linked operational
+explanations from reconstructed cycles and scored analysis results.
+
+It emits:
+
+- per-cycle event timelines with operation durations, thresholds, statuses, and
+  evidence event IDs
+- abnormal spans grouped by finding code
+- behavior pattern classification: `isolated`, `intermittent`, or `sustained`
+- relationship history summaries such as average/min/max duration and threshold
+  exceedance count
+- rolling drift progression windows for long-running timing changes
+- human-readable narratives generated only from measured events, findings, and
+  confidence inputs
+
+No LLM, AI-generated explanation, recommendation engine, frontend, or chat
+interface is used.
 
 ## Sample analysis output
 
@@ -208,10 +229,29 @@ The validation pack generates deterministic expected-vs-actual datasets:
 
 For each dataset it stores expected summaries, runs SQLite-backed ingestion and
 analysis, compares actual to expected, and can write generated events plus
-sample outputs to disk.
+sample outputs and incident narratives to disk.
 
 The original validation datasets generate 30 cycles each. Messy datasets
 generate 240 cycles each so intermittent faults, weak signals, cycle skips,
 operator interventions, noisy timestamps, varying speed, degraded acceptable
 behavior, overlapping fault domains, and gradual drift can be assessed without
 AI or frontend code.
+
+Example incident narrative output:
+
+```json
+{
+  "fault_code": "slow_tamp_return",
+  "confidence": "low",
+  "behavior_pattern": "intermittent",
+  "summary": "slow_tamp_return affected 5 cycle(s) from 17 to 203; behavior appears intermittent for tamp return.",
+  "reason": "slow_tamp_return matters because measured duration exceeded threshold by 51 ms.",
+  "why_confidence": "confidence is low; 5 abnormal occurrence(s); span 17-203; evidence consistency 0.027; median relationship strength 0.041.",
+  "relationship_history": {
+    "operation": "tamp_return",
+    "observed_count": 240,
+    "threshold_ms": 900,
+    "exceeded_count": 5
+  }
+}
+```

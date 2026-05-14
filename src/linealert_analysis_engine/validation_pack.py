@@ -9,10 +9,11 @@ from pathlib import Path
 from random import Random
 from typing import Any
 
-from .models import AnalysisResult, Event
+from .models import AnalysisResult, Event, ReconstructedCycle
 from .serialization import analysis_result_to_dict, event_to_dict
 from .service import AnalysisService
 from .storage import SQLiteStore
+from .timeline import TimelineReconstructor, incident_narrative_to_dict
 from .timing import EventRelationship, TimingAnalyzer
 
 
@@ -46,6 +47,7 @@ class ValidationComparison:
     actual: dict[str, Any]
     mismatches: tuple[str, ...]
     sample_outputs: tuple[dict[str, Any], ...]
+    incident_narratives: tuple[dict[str, Any], ...] = ()
 
 
 def validation_relationships() -> tuple[EventRelationship, ...]:
@@ -79,6 +81,15 @@ def build_validation_datasets() -> tuple[ValidationDataset, ...]:
 def run_validation_dataset(dataset: ValidationDataset) -> tuple[AnalysisResult, ...]:
     """Run a dataset through SQLite-backed ingestion and analysis."""
 
+    _cycles, results = run_validation_context(dataset)
+    return results
+
+
+def run_validation_context(
+    dataset: ValidationDataset,
+) -> tuple[tuple[ReconstructedCycle, ...], tuple[AnalysisResult, ...]]:
+    """Run a dataset and return reconstructed cycles plus scored results."""
+
     with tempfile.TemporaryDirectory() as temp_dir:
         store = SQLiteStore(Path(temp_dir) / f"{dataset.name}.db")
         try:
@@ -87,17 +98,26 @@ def run_validation_dataset(dataset: ValidationDataset) -> tuple[AnalysisResult, 
                 timing_analyzer=TimingAnalyzer(validation_relationships()),
             )
             service.ingest_events(dataset.events)
-            return service.analyze_all()
+            cycles = service.reconstruct_cycles()
+            results = service.analyze_cycles(cycles)
+            return cycles, results
         finally:
             store.close()
 
 
 def compare_dataset(dataset: ValidationDataset) -> ValidationComparison:
-    actual_results = run_validation_dataset(dataset)
+    cycles, actual_results = run_validation_context(dataset)
     actual = summarize_results(actual_results)
     expected = expected_to_dict(dataset.expected)
     mismatches = tuple(_mismatches(expected, actual))
     samples = tuple(analysis_result_to_dict(result) for result in _interesting_samples(actual_results))
+    narratives = tuple(
+        incident_narrative_to_dict(narrative)
+        for narrative in TimelineReconstructor(TimingAnalyzer(validation_relationships())).build_incident_narratives(
+            cycles,
+            actual_results,
+        )
+    )
     return ValidationComparison(
         dataset_name=dataset.name,
         passed=not mismatches,
@@ -105,6 +125,7 @@ def compare_dataset(dataset: ValidationDataset) -> ValidationComparison:
         actual=actual,
         mismatches=mismatches,
         sample_outputs=samples,
+        incident_narratives=narratives,
     )
 
 

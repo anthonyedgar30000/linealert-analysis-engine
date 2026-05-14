@@ -49,6 +49,10 @@ def main() -> int:
                 json.dumps(comparison.sample_outputs, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
+            (dataset_dir / "incident_narratives.json").write_text(
+                json.dumps(comparison.incident_narratives, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
 
     report = [
         {
@@ -58,6 +62,7 @@ def main() -> int:
             "actual": comparison.actual,
             "mismatches": list(comparison.mismatches),
             "sample_outputs": list(comparison.sample_outputs),
+            "incident_narratives": list(comparison.incident_narratives),
         }
         for comparison in comparisons
     ]

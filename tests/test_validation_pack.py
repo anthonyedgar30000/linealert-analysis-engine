@@ -126,6 +126,55 @@ class ValidationPackTests(unittest.TestCase):
         self.assertEqual(comparison.actual["fault_code_counts"], {"speed_dependent_drift": 46})
         self.assertEqual(comparison.actual["confidence_counts"], {"high": 46})
 
+    def test_incident_narratives_reference_real_evidence_only(self) -> None:
+        dataset = self.datasets["messy_intermittent_faults"]
+        comparison = self.comparisons[dataset.name]
+        event_ids = {event.id for event in dataset.events}
+
+        self.assertTrue(comparison.incident_narratives)
+        for narrative in comparison.incident_narratives:
+            with self.subTest(fault_code=narrative["fault_code"]):
+                self.assertTrue(set(narrative["evidence_event_ids"]).issubset(event_ids))
+                for timeline in narrative["cycle_timelines"]:
+                    for entry in timeline["entries"]:
+                        self.assertTrue(set(entry["evidence_event_ids"]).issubset(event_ids))
+
+    def test_timeline_outputs_are_deterministic(self) -> None:
+        first = compare_dataset(self.datasets["messy_partial_borderline_faults"]).incident_narratives
+        second = compare_dataset(self.datasets["messy_partial_borderline_faults"]).incident_narratives
+
+        self.assertEqual(first, second)
+
+    def test_incident_narratives_classify_isolated_intermitent_and_sustained_patterns(self) -> None:
+        intermittent = self.comparisons["messy_intermittent_faults"].incident_narratives[0]
+        sustained = self.comparisons["messy_gradual_drift"].incident_narratives[0]
+
+        self.assertEqual(intermittent["behavior_pattern"], "intermittent")
+        self.assertEqual(intermittent["confidence"], "low")
+        self.assertEqual(sustained["behavior_pattern"], "sustained")
+        self.assertEqual(sustained["confidence"], "high")
+        self.assertTrue(sustained["drift_progression"])
+
+    def test_overlapping_symptom_narratives_remain_separated(self) -> None:
+        narratives = {
+            narrative["fault_code"]: narrative
+            for narrative in self.comparisons["messy_overlapping_symptoms"].incident_narratives
+        }
+
+        self.assertIn("delayed_tamp_extend", narratives)
+        self.assertIn("slow_tamp_return", narratives)
+        self.assertEqual(narratives["delayed_tamp_extend"]["relationship_history"]["operation"], "tamp_extend")
+        self.assertEqual(narratives["slow_tamp_return"]["relationship_history"]["operation"], "tamp_return")
+
+    def test_cycle_timeline_explains_threshold_delta_and_confidence_inputs(self) -> None:
+        narrative = self.comparisons["messy_intermittent_faults"].incident_narratives[0]
+        first_timeline = narrative["cycle_timelines"][0]
+
+        self.assertIn("exceeded threshold by", narrative["reason"])
+        self.assertIn("evidence consistency", narrative["why_confidence"])
+        self.assertIn("Cycle", first_timeline["narrative"])
+        self.assertTrue(any(entry["status"] == "warning" for entry in first_timeline["entries"]))
+
 
 if __name__ == "__main__":
     unittest.main()
