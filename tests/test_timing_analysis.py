@@ -112,6 +112,34 @@ class TimingAnalysisTests(unittest.TestCase):
         self.assertEqual(measurement.duration_ms, 350)
         self.assertTrue(measurement.exceeded_threshold)
 
+    def test_empty_relationship_configuration_disables_timing_measurements(self) -> None:
+        cycle = _cycle(
+            Event("evt-1", 1_000, "cycle_start", "station-1", "line-a", "cycle-1"),
+            Event(
+                "evt-2",
+                1_100,
+                "operation_start",
+                "station-1",
+                "line-a",
+                "cycle-1",
+                payload={"operation": "weld"},
+            ),
+            Event(
+                "evt-3",
+                1_900,
+                "operation_end",
+                "station-1",
+                "line-a",
+                "cycle-1",
+                payload={"operation": "weld"},
+            ),
+            Event("evt-4", 2_000, "cycle_end", "station-1", "line-a", "cycle-1"),
+        )
+
+        timing = TimingAnalyzer([]).analyze(cycle)
+
+        self.assertEqual(timing.measurements, ())
+
 
 def _cycle(*events: Event) -> ReconstructedCycle:
     return ReconstructedCycle(

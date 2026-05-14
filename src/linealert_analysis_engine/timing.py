@@ -38,7 +38,7 @@ class TimingAnalyzer:
     """Extract timing measurements from ordered cycle events."""
 
     def __init__(self, relationships: Iterable[EventRelationship] | None = None) -> None:
-        self.relationships = tuple(relationships or default_relationships())
+        self.relationships = tuple(default_relationships() if relationships is None else relationships)
 
     def analyze(self, cycle: ReconstructedCycle) -> TimingAnalysis:
         ordered_events = sorted(cycle.events, key=lambda event: (event.timestamp_ms, event.id))

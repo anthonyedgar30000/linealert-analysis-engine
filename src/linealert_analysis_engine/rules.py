@@ -40,7 +40,11 @@ class OperationDurationExceededRule:
                         f"Operation {measurement.label} took {measurement.duration_ms} ms, "
                         f"exceeding the {measurement.threshold_ms} ms threshold."
                     ),
-                    evidence_event_ids=(measurement.start_event_id, measurement.end_event_id or ""),
+                    evidence_event_ids=tuple(
+                        event_id
+                        for event_id in (measurement.start_event_id, measurement.end_event_id)
+                        if event_id is not None
+                    ),
                     details={
                         "operation": measurement.label,
                         "duration_ms": measurement.duration_ms,
@@ -149,7 +153,7 @@ class RuleEngine:
     """Applies deterministic rules and returns a serializable result."""
 
     def __init__(self, rules: tuple[Rule, ...] | None = None) -> None:
-        self.rules = rules or default_rules()
+        self.rules = default_rules() if rules is None else rules
 
     def evaluate(self, cycle: ReconstructedCycle, timing: TimingAnalysis) -> AnalysisResult:
         context = RuleContext(cycle=cycle, timing=timing)

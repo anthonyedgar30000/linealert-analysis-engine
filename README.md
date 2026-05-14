@@ -130,6 +130,17 @@ and structured details.
         "threshold_ms": 5000,
         "relationship": "operation_duration"
       }
+    },
+    {
+      "rule_id": "explicit_fault_event",
+      "severity": "error",
+      "fault_code": "weld_timeout",
+      "explanation": "Fault event evt-008 reported code weld_timeout at 1710000018500 ms.",
+      "evidence_event_ids": ["evt-008"],
+      "details": {
+        "reported_fault_code": "weld_timeout",
+        "message": "Weld operation exceeded takt time"
+      }
     }
   ]
 }
@@ -140,17 +151,17 @@ and structured details.
 Run tests:
 
 ```bash
-python -m unittest discover -s tests
+python3 -m unittest discover -s tests
 ```
 
 Generate demo events:
 
 ```bash
-python scripts/generate_demo_events.py --output demo_events.jsonl
+python3 scripts/generate_demo_events.py --output demo_events.jsonl
 ```
 
 Generate events, ingest them into SQLite, and print analysis:
 
 ```bash
-python scripts/generate_demo_events.py --output demo_events.jsonl --database demo.db
+python3 scripts/generate_demo_events.py --output demo_events.jsonl --database demo.db
 ```
