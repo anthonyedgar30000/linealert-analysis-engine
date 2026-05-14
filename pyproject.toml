@@ -1,0 +1,9 @@
+[project]
+name = "linealert-analysis-engine"
+version = "0.1.0"
+description = "Deterministic Phase 1 backend for line event analysis."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
