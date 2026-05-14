@@ -46,7 +46,7 @@ class TimingAnalyzer:
 
     def analyze(self, cycle: ReconstructedCycle) -> TimingAnalysis:
         ordered_events = sorted(cycle.events, key=lambda event: (event.timestamp_ms, event.id))
-        open_starts: dict[tuple[str, tuple[object, ...]], Deque[Event]] = defaultdict(deque)
+        open_starts: dict[tuple[EventRelationship, tuple[object, ...]], Deque[Event]] = defaultdict(deque)
         measurements: list[TimingMeasurement] = []
 
         relationships_by_start = defaultdict(list)
@@ -59,12 +59,12 @@ class TimingAnalyzer:
             for relationship in relationships_by_start[event.event_type]:
                 if not relationship.applies_to(event):
                     continue
-                open_starts[(relationship.name, relationship.match_key(event))].append(event)
+                open_starts[(relationship, relationship.match_key(event))].append(event)
 
             for relationship in relationships_by_end[event.event_type]:
                 if not relationship.applies_to(event):
                     continue
-                key = (relationship.name, relationship.match_key(event))
+                key = (relationship, relationship.match_key(event))
                 starts = open_starts[key]
                 if not starts:
                     continue
@@ -84,8 +84,8 @@ class TimingAnalyzer:
                 )
 
         for relationship in self.relationships:
-            for (name, _match_key), starts in open_starts.items():
-                if name != relationship.name:
+            for (open_relationship, _match_key), starts in open_starts.items():
+                if open_relationship != relationship:
                     continue
                 for start_event in starts:
                     measurements.append(
