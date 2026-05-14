@@ -132,7 +132,7 @@ deterministic inputs only:
       "rule_id": "operation_duration_exceeded",
       "severity": "warning",
       "fault_code": "slow_operation",
-      "confidence": "low",
+      "confidence": "medium",
       "explanation": "Operation weld took 8200 ms, exceeding the 5000 ms threshold.",
       "evidence_event_ids": ["evt-006", "evt-007"],
       "details": {
