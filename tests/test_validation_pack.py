@@ -118,13 +118,13 @@ class ValidationPackTests(unittest.TestCase):
 
         self.assertGreater(comparison.actual["fault_code_counts"].get("delayed_tamp_extend", 0), 0)
         self.assertGreater(comparison.actual["fault_code_counts"].get("slow_tamp_return", 0), 0)
-        self.assertEqual(comparison.actual["confidence_counts"], {"medium": 26})
+        self.assertEqual(comparison.actual["confidence_counts"], {"high": 12, "medium": 14})
 
     def test_gradual_drift_becomes_high_confidence(self) -> None:
         comparison = self.comparisons["messy_gradual_drift"]
 
-        self.assertEqual(comparison.actual["fault_code_counts"], {"speed_dependent_drift": 45})
-        self.assertEqual(comparison.actual["confidence_counts"], {"high": 45})
+        self.assertEqual(comparison.actual["fault_code_counts"], {"speed_dependent_drift": 46})
+        self.assertEqual(comparison.actual["confidence_counts"], {"high": 46})
 
 
 if __name__ == "__main__":

@@ -87,9 +87,9 @@ def _confidence_for(finding: Finding, stats: dict[str, Any], *, total_cycles: in
     elif count >= 3:
         score += 1
 
-    if consistency >= 0.75:
+    if count >= 3 and consistency >= 0.75:
         score += 2
-    elif consistency >= 0.45:
+    elif count >= 3 and consistency >= 0.45:
         score += 1
 
     if strength >= 0.25:
@@ -97,9 +97,9 @@ def _confidence_for(finding: Finding, stats: dict[str, Any], *, total_cycles: in
     elif strength >= 0.05:
         score += 1
 
-    if duration_ratio >= 0.60:
+    if consistency >= 0.25 and duration_ratio >= 0.60:
         score += 2
-    elif duration_ratio >= 0.25:
+    elif consistency >= 0.25 and duration_ratio >= 0.25:
         score += 1
 
     if finding.severity == "error":
