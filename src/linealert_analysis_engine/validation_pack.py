@@ -17,6 +17,7 @@ from .timing import EventRelationship, TimingAnalyzer
 
 
 CYCLE_COUNT = 30
+MESSY_CYCLE_COUNT = 240
 LINE_ID = "line-a"
 STATION_ID = "tamp-station-1"
 
@@ -26,6 +27,7 @@ class ExpectedOutcome:
     cycle_count: int
     status_counts: dict[str, int]
     fault_code_counts: dict[str, int]
+    confidence_counts: dict[str, int] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +68,11 @@ def build_validation_datasets() -> tuple[ValidationDataset, ...]:
         _out_of_order_event_sequence(),
         _speed_dependent_drift(),
         _random_timing_jitter(),
+        _messy_acceptable_noise(),
+        _messy_intermittent_faults(),
+        _messy_partial_borderline_faults(),
+        _messy_overlapping_symptoms(),
+        _messy_gradual_drift(),
     )
 
 
@@ -110,19 +117,27 @@ def summarize_results(results: tuple[AnalysisResult, ...]) -> dict[str, Any]:
     fault_code_counts: Counter[str] = Counter(
         finding.fault_code for result in results for finding in result.findings
     )
-    return {
+    confidence_counts: Counter[str] = Counter(
+        finding.confidence for result in results for finding in result.findings
+    )
+    summary = {
         "cycle_count": len(results),
         "status_counts": dict(sorted(status_counts.items())),
         "fault_code_counts": dict(sorted(fault_code_counts.items())),
     }
+    summary["confidence_counts"] = dict(sorted(confidence_counts.items()))
+    return summary
 
 
 def expected_to_dict(expected: ExpectedOutcome) -> dict[str, Any]:
-    return {
+    expected_dict = {
         "cycle_count": expected.cycle_count,
         "status_counts": dict(sorted(expected.status_counts.items())),
         "fault_code_counts": dict(sorted(expected.fault_code_counts.items())),
     }
+    if expected.confidence_counts is not None:
+        expected_dict["confidence_counts"] = dict(sorted(expected.confidence_counts.items()))
+    return expected_dict
 
 
 def dataset_to_jsonl(dataset: ValidationDataset) -> str:
@@ -261,12 +276,167 @@ def _random_timing_jitter() -> ValidationDataset:
     )
 
 
+def _messy_acceptable_noise() -> ValidationDataset:
+    random = Random(108)
+
+    def profile(index: int) -> dict[str, Any]:
+        speed = "fast" if index % 17 in (0, 1, 2, 3) else "normal"
+        skipped = index % 53 == 11
+        operator_intervention = index % 29 in (3, 4)
+        return _normal_profile(index) | {
+            "product_detect_ms": 90 + random.randint(-35, 60),
+            "tamp_extend_ms": 525 + random.randint(-95, 150),
+            "index_transfer_ms": (825 if speed == "fast" else 760) + random.randint(-120, 180),
+            "tamp_return_ms": 640 + random.randint(-110, 190),
+            "speed_profile": speed,
+            "skipped_cycle": skipped,
+            "operator_intervention": operator_intervention,
+            "timestamp_noise_ms": random.randint(-18, 18),
+        }
+
+    return ValidationDataset(
+        name="messy_acceptable_noise",
+        description=(
+            "Noisy timestamps, planned cycle skips, operator interventions, and varying speed "
+            "that remain degraded-but-acceptable."
+        ),
+        events=_build_events("messy_acceptable_noise", profile, cycle_count=MESSY_CYCLE_COUNT),
+        expected=ExpectedOutcome(
+            cycle_count=MESSY_CYCLE_COUNT,
+            status_counts={"ok": MESSY_CYCLE_COUNT},
+            fault_code_counts={},
+            confidence_counts={},
+        ),
+    )
+
+
+def _messy_intermittent_faults() -> ValidationDataset:
+    random = Random(209)
+    fault_indices = {17, 41, 88, 149, 203}
+
+    def profile(index: int) -> dict[str, Any]:
+        borderline_fault = index in fault_indices
+        return _normal_profile(index) | {
+            "product_detect_ms": 85 + random.randint(-20, 30),
+            "tamp_extend_ms": 535 + random.randint(-60, 90),
+            "index_transfer_ms": 780 + random.randint(-80, 130),
+            "tamp_return_ms": (960 + random.randint(-30, 25)) if borderline_fault else 640 + random.randint(-70, 145),
+            "operator_intervention": index in {40, 41, 87, 148, 149},
+            "timestamp_noise_ms": random.randint(-22, 22),
+        }
+
+    return ValidationDataset(
+        name="messy_intermittent_faults",
+        description="Sparse borderline tamp-return faults mixed with operator intervention and noise.",
+        events=_build_events("messy_intermittent_faults", profile, cycle_count=MESSY_CYCLE_COUNT),
+        expected=ExpectedOutcome(
+            cycle_count=MESSY_CYCLE_COUNT,
+            status_counts={"ok": MESSY_CYCLE_COUNT - len(fault_indices), "warning": len(fault_indices)},
+            fault_code_counts={"slow_tamp_return": len(fault_indices)},
+            confidence_counts={"low": len(fault_indices)},
+        ),
+    )
+
+
+def _messy_partial_borderline_faults() -> ValidationDataset:
+    random = Random(310)
+    fault_indices = {42, 119, 177}
+
+    def profile(index: int) -> dict[str, Any]:
+        partial_fault = index in fault_indices
+        return _normal_profile(index) | {
+            "product_detect_ms": 95 + random.randint(-25, 45),
+            "tamp_extend_ms": (708 + random.randint(0, 10)) if partial_fault else 540 + random.randint(-80, 145),
+            "index_transfer_ms": 790 + random.randint(-95, 170),
+            "tamp_return_ms": 650 + random.randint(-90, 165),
+            "speed_profile": "slow" if index % 37 in (5, 6, 7) else "normal",
+            "operator_intervention": index % 71 == 0,
+            "timestamp_noise_ms": random.randint(-20, 20),
+        }
+
+    return ValidationDataset(
+        name="messy_partial_borderline_faults",
+        description="A few weak tamp-extend excursions just over threshold in otherwise noisy cycles.",
+        events=_build_events("messy_partial_borderline_faults", profile, cycle_count=MESSY_CYCLE_COUNT),
+        expected=ExpectedOutcome(
+            cycle_count=MESSY_CYCLE_COUNT,
+            status_counts={"ok": MESSY_CYCLE_COUNT - len(fault_indices), "warning": len(fault_indices)},
+            fault_code_counts={"delayed_tamp_extend": len(fault_indices)},
+            confidence_counts={"low": len(fault_indices)},
+        ),
+    )
+
+
+def _messy_overlapping_symptoms() -> ValidationDataset:
+    random = Random(411)
+    extend_fault_indices = set(range(70, 82)) | {132, 133}
+    return_fault_indices = set(range(74, 86))
+    warning_cycles = extend_fault_indices | return_fault_indices
+
+    def profile(index: int) -> dict[str, Any]:
+        return _normal_profile(index) | {
+            "product_detect_ms": 88 + random.randint(-20, 50),
+            "tamp_extend_ms": (760 + random.randint(-15, 35)) if index in extend_fault_indices else 530 + random.randint(-70, 130),
+            "index_transfer_ms": 795 + random.randint(-85, 145),
+            "tamp_return_ms": (945 + random.randint(-8, 35)) if index in return_fault_indices else 645 + random.randint(-80, 150),
+            "speed_profile": "fast" if 68 <= index <= 90 else "normal",
+            "operator_intervention": index in {73, 74, 82, 83},
+            "timestamp_noise_ms": random.randint(-18, 18),
+        }
+
+    return ValidationDataset(
+        name="messy_overlapping_symptoms",
+        description="Overlapping tamp extend and return symptoms around speed changes and interventions.",
+        events=_build_events("messy_overlapping_symptoms", profile, cycle_count=MESSY_CYCLE_COUNT),
+        expected=ExpectedOutcome(
+            cycle_count=MESSY_CYCLE_COUNT,
+            status_counts={"ok": MESSY_CYCLE_COUNT - len(warning_cycles), "warning": len(warning_cycles)},
+            fault_code_counts={
+                "delayed_tamp_extend": len(extend_fault_indices),
+                "slow_tamp_return": len(return_fault_indices),
+            },
+            confidence_counts={"medium": len(extend_fault_indices) + len(return_fault_indices)},
+        ),
+    )
+
+
+def _messy_gradual_drift() -> ValidationDataset:
+    random = Random(512)
+
+    def profile(index: int) -> dict[str, Any]:
+        drift_ms = 760 + max(0, index - 120) * 4
+        return _normal_profile(index) | {
+            "product_detect_ms": 90 + random.randint(-20, 35),
+            "tamp_extend_ms": 530 + random.randint(-70, 120),
+            "index_transfer_ms": drift_ms + random.randint(-18, 18),
+            "tamp_return_ms": 645 + random.randint(-70, 140),
+            "speed_profile": "fast" if index >= 120 else "normal",
+            "operator_intervention": index in {151, 178, 211},
+            "timestamp_noise_ms": random.randint(-12, 12),
+        }
+
+    fault_count = _count_matching(lambda index: index >= 195, cycle_count=MESSY_CYCLE_COUNT)
+    return ValidationDataset(
+        name="messy_gradual_drift",
+        description="Hundreds-cycle speed-dependent drift with weak early signals becoming sustained.",
+        events=_build_events("messy_gradual_drift", profile, cycle_count=MESSY_CYCLE_COUNT),
+        expected=ExpectedOutcome(
+            cycle_count=MESSY_CYCLE_COUNT,
+            status_counts={"ok": MESSY_CYCLE_COUNT - fault_count, "warning": fault_count},
+            fault_code_counts={"speed_dependent_drift": fault_count},
+            confidence_counts={"high": fault_count},
+        ),
+    )
+
+
 def _build_events(
     dataset_name: str,
     profile_for_index: Any,
+    *,
+    cycle_count: int = CYCLE_COUNT,
 ) -> tuple[Event, ...]:
     events: list[Event] = []
-    for index in range(CYCLE_COUNT):
+    for index in range(cycle_count):
         events.extend(_cycle_events(dataset_name, index, profile_for_index(index)))
     return tuple(events)
 
@@ -276,15 +446,32 @@ def _cycle_events(dataset_name: str, index: int, profile: dict[str, Any]) -> tup
     unit_id = f"{dataset_name}-unit-{index:03d}"
     base_ms = 1_710_000_000_000 + index * 10_000
     speed_profile = str(profile.get("speed_profile", "normal"))
+    timestamp_noise_ms = int(profile.get("timestamp_noise_ms", 0))
 
-    product_start = base_ms + 100
-    product_end = product_start + int(profile["product_detect_ms"])
-    extend_start = base_ms + 350
-    extend_end = extend_start + int(profile["tamp_extend_ms"])
+    if profile.get("skipped_cycle", False):
+        return (
+            _event(dataset_name, index, "cycle-start", base_ms, "cycle_start", cycle_id, unit_id),
+            _event(
+                dataset_name,
+                index,
+                "planned-cycle-skip",
+                base_ms + 180 + timestamp_noise_ms,
+                "operator_intervention",
+                cycle_id,
+                unit_id,
+                payload={"reason": "planned_cycle_skip", "speed_profile": speed_profile},
+            ),
+            _event(dataset_name, index, "cycle-end", base_ms + 360, "cycle_end", cycle_id, unit_id),
+        )
+
+    product_start = base_ms + 100 + timestamp_noise_ms
+    product_end = product_start + int(profile["product_detect_ms"]) - timestamp_noise_ms
+    extend_start = base_ms + 350 - timestamp_noise_ms
+    extend_end = extend_start + int(profile["tamp_extend_ms"]) + timestamp_noise_ms
     transfer_start = extend_end + 120
-    transfer_end = transfer_start + int(profile["index_transfer_ms"])
+    transfer_end = transfer_start + int(profile["index_transfer_ms"]) - timestamp_noise_ms
     return_start = transfer_end + 120
-    return_end = return_start + int(profile["tamp_return_ms"])
+    return_end = return_start + int(profile["tamp_return_ms"]) + timestamp_noise_ms
     cycle_end = return_end + 120
 
     events = [
@@ -386,6 +573,20 @@ def _cycle_events(dataset_name: str, index: int, profile: dict[str, Any]) -> tup
             _event(dataset_name, index, "cycle-end", cycle_end, "cycle_end", cycle_id, unit_id),
         ]
     )
+    if profile.get("operator_intervention", False):
+        events.insert(
+            -1,
+            _event(
+                dataset_name,
+                index,
+                "operator-intervention",
+                transfer_end + 60,
+                "operator_intervention",
+                cycle_id,
+                unit_id,
+                payload={"reason": "manual_observation", "speed_profile": speed_profile},
+            ),
+        )
     return tuple(events)
 
 
@@ -457,13 +658,13 @@ def _event(
     )
 
 
-def _count_matching(predicate: Any) -> int:
-    return sum(1 for index in range(CYCLE_COUNT) if predicate(index))
+def _count_matching(predicate: Any, *, cycle_count: int = CYCLE_COUNT) -> int:
+    return sum(1 for index in range(cycle_count) if predicate(index))
 
 
 def _mismatches(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
     messages: list[str] = []
-    for key in ("cycle_count", "status_counts", "fault_code_counts"):
+    for key in expected:
         if expected[key] != actual[key]:
             messages.append(f"{key}: expected {expected[key]!r}, got {actual[key]!r}")
     return messages

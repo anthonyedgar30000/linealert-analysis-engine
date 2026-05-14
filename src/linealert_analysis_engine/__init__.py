@@ -1,5 +1,6 @@
 """Backend primitives for deterministic line alert analysis."""
 
+from .confidence import ConfidenceScorer
 from .models import AnalysisResult, Event, Finding, ReconstructedCycle
 from .reconstruction import CycleReconstructor
 from .rules import RuleEngine, default_rules
@@ -11,6 +12,7 @@ from .validation_pack import build_validation_datasets, compare_all_datasets
 __all__ = [
     "AnalysisResult",
     "AnalysisService",
+    "ConfidenceScorer",
     "CycleReconstructor",
     "Event",
     "EventRelationship",

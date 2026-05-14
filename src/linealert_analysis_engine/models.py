@@ -85,6 +85,7 @@ class Finding:
     fault_code: str
     explanation: str
     evidence_event_ids: tuple[str, ...]
+    confidence: str = "medium"
     details: Mapping[str, Any] = field(default_factory=dict)
 
 

@@ -14,6 +14,7 @@ analysis.
 - Unit tests for timing logic
 - Demo event generator
 - Deterministic validation pack for expected Phase 1 outcomes
+- Messy reality validation datasets with low/medium/high confidence scoring
 
 There is no frontend or AI/LLM integration in Phase 1.
 
@@ -99,8 +100,16 @@ The rule engine applies hardcoded deterministic rules:
 - `cycle_duration_exceeded` -> `slow_cycle`
 - `explicit_fault_event` -> reported fault code
 
-Every finding includes severity, fault code, explanation, evidence event IDs,
-and structured details.
+Every finding includes severity, confidence, fault code, explanation, evidence
+event IDs, and structured details.
+
+Confidence is scored after all cycles in a run are analyzed. The scorer uses
+deterministic inputs only:
+
+- evidence consistency across the abnormal span
+- repeated occurrence count
+- relationship strength versus threshold
+- duration of abnormal behavior across the analyzed window
 
 ## Sample analysis output
 
@@ -123,19 +132,28 @@ and structured details.
       "rule_id": "operation_duration_exceeded",
       "severity": "warning",
       "fault_code": "slow_operation",
+      "confidence": "low",
       "explanation": "Operation weld took 8200 ms, exceeding the 5000 ms threshold.",
       "evidence_event_ids": ["evt-006", "evt-007"],
       "details": {
         "operation": "weld",
         "duration_ms": 8200,
         "threshold_ms": 5000,
-        "relationship": "operation_duration"
+        "relationship": "operation_duration",
+        "confidence_inputs": {
+          "occurrence_count": 1,
+          "total_cycles": 3,
+          "span_cycles": 1,
+          "evidence_consistency": 1.0,
+          "median_relationship_strength": 0.64
+        }
       }
     },
     {
       "rule_id": "explicit_fault_event",
       "severity": "error",
       "fault_code": "weld_timeout",
+      "confidence": "medium",
       "explanation": "Fault event evt-008 reported code weld_timeout at 1710000018500 ms.",
       "evidence_event_ids": ["evt-008"],
       "details": {
@@ -173,7 +191,7 @@ Run the validation pack:
 python3 scripts/run_validation_pack.py --output-dir validation_output
 ```
 
-The validation pack generates 30 cycles for each dataset:
+The validation pack generates deterministic expected-vs-actual datasets:
 
 - `normal_cycles`
 - `slow_tamp_return`
@@ -182,7 +200,18 @@ The validation pack generates 30 cycles for each dataset:
 - `out_of_order_event_sequence`
 - `speed_dependent_drift`
 - `random_timing_jitter`
+- `messy_acceptable_noise`
+- `messy_intermittent_faults`
+- `messy_partial_borderline_faults`
+- `messy_overlapping_symptoms`
+- `messy_gradual_drift`
 
 For each dataset it stores expected summaries, runs SQLite-backed ingestion and
 analysis, compares actual to expected, and can write generated events plus
 sample outputs to disk.
+
+The original validation datasets generate 30 cycles each. Messy datasets
+generate 240 cycles each so intermittent faults, weak signals, cycle skips,
+operator interventions, noisy timestamps, varying speed, degraded acceptable
+behavior, overlapping fault domains, and gradual drift can be assessed without
+AI or frontend code.

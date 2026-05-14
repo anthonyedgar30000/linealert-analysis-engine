@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from .confidence import ConfidenceScorer
 from .models import AnalysisResult, Event, ReconstructedCycle
 from .reconstruction import CycleReconstructor
 from .rules import RuleEngine
@@ -23,11 +24,13 @@ class AnalysisService:
         reconstructor: CycleReconstructor | None = None,
         timing_analyzer: TimingAnalyzer | None = None,
         rule_engine: RuleEngine | None = None,
+        confidence_scorer: ConfidenceScorer | None = None,
     ) -> None:
         self.store = store
         self.reconstructor = reconstructor or CycleReconstructor()
         self.timing_analyzer = timing_analyzer or TimingAnalyzer()
         self.rule_engine = rule_engine or RuleEngine()
+        self.confidence_scorer = confidence_scorer or ConfidenceScorer()
 
     def ingest_event(self, event: Event | Mapping[str, Any]) -> None:
         self.store.ingest_event(_coerce_event(event))
@@ -41,13 +44,20 @@ class AnalysisService:
         return cycles
 
     def analyze_cycle(self, cycle: ReconstructedCycle) -> AnalysisResult:
-        timing = self.timing_analyzer.analyze(cycle)
-        result = self.rule_engine.evaluate(cycle, timing)
+        result = self.confidence_scorer.score((self._evaluate_cycle(cycle),))[0]
         self.store.save_analysis(result)
         return result
 
     def analyze_all(self) -> tuple[AnalysisResult, ...]:
-        return tuple(self.analyze_cycle(cycle) for cycle in self.reconstruct_cycles())
+        results = tuple(self._evaluate_cycle(cycle) for cycle in self.reconstruct_cycles())
+        scored_results = self.confidence_scorer.score(results)
+        for result in scored_results:
+            self.store.save_analysis(result)
+        return scored_results
+
+    def _evaluate_cycle(self, cycle: ReconstructedCycle) -> AnalysisResult:
+        timing = self.timing_analyzer.analyze(cycle)
+        return self.rule_engine.evaluate(cycle, timing)
 
 
 def _coerce_event(event: Event | Mapping[str, Any]) -> Event:

@@ -47,6 +47,7 @@ def _finding_to_dict(finding: Finding) -> dict[str, Any]:
         "rule_id": finding.rule_id,
         "severity": finding.severity,
         "fault_code": finding.fault_code,
+        "confidence": finding.confidence,
         "explanation": finding.explanation,
         "evidence_event_ids": list(finding.evidence_event_ids),
         "details": dict(finding.details),
