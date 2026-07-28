@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "source": "PLACEHOLDER TEMPLATE - replace with Peter's real label-machine troubleshooting tree",
+  "is_placeholder": true,
+  "entries": [
+    {
+      "id": "placeholder_entry_001",
+      "is_placeholder": true,
+      "symptom_category": "PLACEHOLDER: symptom category from Peter's tree",
+      "observed_operator_symptom": "PLACEHOLDER: operator-visible symptom text goes here",
+      "related_fault_code": "PLACEHOLDER_RELATED_LINEALERT_FAULT_CODE",
+      "possible_causes": [
+        "PLACEHOLDER: possible cause from real expert tree",
+        "PLACEHOLDER: alternate possible cause from real expert tree"
+      ],
+      "distinguishing_questions": [
+        "PLACEHOLDER: question Peter uses to distinguish this path",
+        "PLACEHOLDER: follow-up question from the real decision tree"
+      ],
+      "machine_signals_to_check": [
+        "PLACEHOLDER: machine signal or sensor name to verify",
+        "PLACEHOLDER: second machine signal to verify"
+      ],
+      "timing_relationships_to_check": [
+        "PLACEHOLDER: LineAlert timing relationship name",
+        "PLACEHOLDER: related timing relationship name"
+      ],
+      "recommended_checks": [
+        "PLACEHOLDER: safe inspection/check step from Peter",
+        "PLACEHOLDER: second check step from Peter"
+      ],
+      "recommended_fixes": [
+        "PLACEHOLDER: fix action from Peter's real tree",
+        "PLACEHOLDER: alternate fix action from Peter's real tree"
+      ],
+      "escalation_condition": "PLACEHOLDER: condition where operator should escalate",
+      "notes_from_expert": "PLACEHOLDER: Peter's notes or context go here; this file does not contain real expert knowledge yet.",
+      "confidence_adjustment_rules": [
+        {
+          "condition": "PLACEHOLDER: deterministic condition using evidence fields",
+          "adjustment": "PLACEHOLDER: increase | decrease | no_change",
+          "rationale": "PLACEHOLDER: expert rationale for confidence adjustment"
+        }
+      ]
+    }
+  ]
+}
